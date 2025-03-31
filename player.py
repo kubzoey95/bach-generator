@@ -1,25 +1,19 @@
-import numpy
-import pygame
+import asyncio
 import time
-from functools import lru_cache
-from scipy.signal import sawtooth
-import numpy as np
 
-@lru_cache(256)
-def create_wave(pitch, baseFreq=220):
-    sampleRate = 44100
-    freq = baseFreq * pow(2, pitch / 12)
-
-    arr = (2048 * sawtooth(2.0 * numpy.pi * freq * numpy.arange(0, int(sampleRate * 0.1)) / sampleRate)).astype(numpy.int16)
-    # arr = numpy.array([ for x in range(0, sampleRate)]).astype(numpy.int16)
-    arr2 = numpy.c_[arr, arr]
-    sound = pygame.sndarray.make_sound(arr2)
-    return sound
+from mingus.midi import fluidsynth
 
 
-def play(seq, rest_divisor=4, baseFreq=220):
-    pygame.mixer.init(44100, -16, 2, 512)
-    
+async def play_sound(pitch, middle_pitch):
+    fluidsynth.play_Note(pitch + middle_pitch, 0, 127)
+    await asyncio.sleep(0.5)
+    fluidsynth.stop_Note(pitch + middle_pitch, 0)
+    # await asyncio.sleep(1)
+    # fs.noteoff(0, pitch + middle_pitch)
+
+
+async def play(seq, rest_divisor=512, middle_pitch=60):
+    fluidsynth.init("Piano_Infinity_Soundfont.sf2", "pulseaudio")
     pitch = 0
     last_event = float("-inf")
     for s in seq:
@@ -28,9 +22,11 @@ def play(seq, rest_divisor=4, baseFreq=220):
         if cmd == "PITCH":
             pitch += num
         if cmd == "PLAY":
-            create_wave(pitch, baseFreq).play(maxtime=100, fade_ms=50)
+            asyncio.create_task(play_sound(pitch, middle_pitch))
+            print("played", pitch + middle_pitch)
         if cmd == "REST":
             to_wait = num / rest_divisor
-            while time.time() - last_event < to_wait:
-                time.sleep(0.001)
+            while real_to_wait := (time.time() - last_event) < to_wait:
+                await asyncio.sleep(max(0.001, 0.8 * (to_wait - real_to_wait)))
             last_event = time.time()
+            print("rested", to_wait)

@@ -36,7 +36,7 @@ class MusicDataset(Dataset):
         self.pieces = [json.loads(p.read_bytes()) for p in Path(dataset_dir).glob("**/*.json")]
         self.pointers = [(i, j) for i, p in enumerate(self.pieces) for j in range(len(p))]
 
-        self.rests = tuple(range(1, 13))
+        self.rests_ms = (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096)
         self.pitches = (1,2,3,4,5,6,7,8,9,10,11,12)
 
     def __len__(self):
@@ -45,8 +45,9 @@ class MusicDataset(Dataset):
     def load_sample(self, i, j):
         notes: list = self.pieces[i][max(j-self.context_length, 0):j+2]
         notes.sort(key=lambda x: (int(x[0] == "END"), x[1], random.randint(-99999, 99999)))
-        preout = np.array([[n0[0], n1[1] - n0[1]] for n0, n1 in zip(notes[:-1], notes[1:])])
-
+        preout = np.array([[n0[0], min(n1[1] - n0[1], 10)] for n0, n1 in zip(notes[:-1], notes[1:])])
+        preout[:, 1] = (preout[:, 1] * 1000).round().astype(int)  # to miliseconds
+        
         preout[1:, 0] = preout[1:, 0] - preout[:-1, 0]
         preout[0, 0] = preout[0, 0] + random.randint(-11, 11)
 
@@ -61,12 +62,12 @@ class MusicDataset(Dataset):
             out.append(("PLAY", 0))
             
             if time > 0:
-                for r in split_and_shuffle(time, self.rests):
+                for r in split_and_shuffle(time, self.rests_ms):
                     out.append(("REST", r))
 
         out = [*(("PAD", 0) for _ in range(self.context_length + 1 - len(out))), *out]
 
-        out = encode([f"{o[0]}_{o[1]}" for o in out])
+        out = encode([f"{o[0]}_{int(o[1])}" for o in out])
 
         assert len(out) >= 257
         if len(out) > 257:
