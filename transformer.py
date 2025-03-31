@@ -56,4 +56,4 @@ class SmallGPT2(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "interval": "step"}}
 
     def train_dataloader(self):
-        return DataLoader(self.dataset, 200, shuffle=True, num_workers=46)
+        return DataLoader(self.dataset, 256, shuffle=True, num_workers=128)
