@@ -36,7 +36,7 @@ class MusicDataset(Dataset):
         self.pieces = [json.loads(p.read_bytes()) for p in Path(dataset_dir).glob("**/*.json")]
         self.pointers = [(i, j) for i, p in enumerate(self.pieces) for j in range(len(p))]
 
-        self.rests_ms = (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096)
+        self.rests_ms = (1, 2, 3, 5, 7, 11, 13, 19, 23, 26, 35, 50, 100, 150)
         self.pitches = (1,2,3,4,5,6,7,8,9,10,11,12)
 
     def __len__(self):

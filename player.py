@@ -1,19 +1,20 @@
 import asyncio
 import time
-
+import random
 from mingus.midi import fluidsynth
 
 
 async def play_sound(pitch, middle_pitch):
-    fluidsynth.play_Note(pitch + middle_pitch, 0, 127)
+    ch = random.randint(0, 16)
+    fluidsynth.play_Note(pitch + middle_pitch, ch, 127)
     await asyncio.sleep(0.5)
-    fluidsynth.stop_Note(pitch + middle_pitch, 0)
+    fluidsynth.stop_Note(pitch + middle_pitch, ch)
     # await asyncio.sleep(1)
     # fs.noteoff(0, pitch + middle_pitch)
 
 
 async def play(seq, rest_divisor=512, middle_pitch=60):
-    fluidsynth.init("Piano_Infinity_Soundfont.sf2", "pulseaudio")
+    fluidsynth.init("CLAV-E.PNO.sf2", "pulseaudio")
     pitch = 0
     last_event = float("-inf")
     for s in seq:
@@ -30,3 +31,4 @@ async def play(seq, rest_divisor=512, middle_pitch=60):
                 await asyncio.sleep(max(0.001, 0.8 * (to_wait - real_to_wait)))
             last_event = time.time()
             print("rested", to_wait)
+            print("real rested milis", num)
