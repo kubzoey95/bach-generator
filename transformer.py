@@ -7,7 +7,7 @@ from dataset_model import MusicDataset
 
 
 class SmallGPT2(pl.LightningModule):
-    def __init__(self, seq_len=256, vocab_size=39):
+    def __init__(self, seq_len=256, vocab_size=42):
         super().__init__()
         self.seq_len = seq_len
         self.vocab_size = vocab_size
