@@ -11,7 +11,7 @@ for p in Path("./baroque_processed/").glob("**/*.json"):
     arr = np.array(json.loads(p.read_text()))[:, 1].astype(float)
     arr[1:] = arr[1:] - arr[:-1]
     assert arr.min() >= 0
-    for k, v in Counter(map(lambda x: round(1000 * x), arr.tolist())).items():
+    for k, v in Counter(map(lambda x: round(100 * x), arr.tolist())).items():
         all_rests[k] += v
 
 all_rests = {int(k): v for k, v in all_rests.items()}

@@ -36,8 +36,10 @@ class MusicDataset(Dataset):
         self.pieces = [json.loads(p.read_bytes()) for p in Path(dataset_dir).glob("**/*.json")]
         self.pointers = [(i, j) for i, p in enumerate(self.pieces) for j in range(len(p))]
 
-        self.rests_ms = (1, 2, 3, 5, 7, 11, 13, 19, 23, 26, 35, 50, 100, 150)
-        self.pitches = (1,2,3,4,5,6,7,8,9,10,11,12)
+        self.rests_cs = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+        self.pitches = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+        
+        self.tempos = (0.125, 0.25, 0.33333, 0.5, 1, 2, 3, 4, 8)
 
     def __len__(self):
         return len(self.pointers)
@@ -46,7 +48,12 @@ class MusicDataset(Dataset):
         notes: list = self.pieces[i][max(j-self.context_length, 0):j+2]
         notes.sort(key=lambda x: (int(x[0] == "END"), x[1], random.randint(-99999, 99999)))
         preout = np.array([[n0[0], min(n1[1] - n0[1], 10)] for n0, n1 in zip(notes[:-1], notes[1:])])
-        preout[:, 1] = (preout[:, 1] * 1000).round().astype(int)  # to miliseconds
+        
+        # augment tempo
+        multiplier = random.choice(self.tempos)
+        preout[:, 1] = preout[:, 1] * multiplier
+        
+        preout[:, 1] = (preout[:, 1] * 100).round().astype(int)  # to centiseconds
         
         preout[1:, 0] = preout[1:, 0] - preout[:-1, 0]
         preout[0, 0] = preout[0, 0] + random.randint(-11, 11)
@@ -62,7 +69,7 @@ class MusicDataset(Dataset):
             out.append(("PLAY", 0))
             
             if time > 0:
-                for r in split_and_shuffle(time, self.rests_ms):
+                for r in split_and_shuffle(time, self.rests_cs):
                     out.append(("REST", r))
 
         out = [*(("PAD", 0) for _ in range(self.context_length + 1 - len(out))), *out]

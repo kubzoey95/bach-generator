@@ -2,7 +2,7 @@ import asyncio
 import time
 import random
 from mingus.midi import fluidsynth
-
+from collections import deque
 
 async def play_sound(pitch, middle_pitch):
     ch = random.randint(0, 16)
@@ -13,10 +13,11 @@ async def play_sound(pitch, middle_pitch):
     # fs.noteoff(0, pitch + middle_pitch)
 
 
-async def play(seq, rest_divisor=512, middle_pitch=60):
-    fluidsynth.init("CLAV-E.PNO.sf2", "pulseaudio")
+async def play(seq, rest_divisor=50, middle_pitch=60):
+    fluidsynth.init("[GD] The Grandeur D.sf2", "pulseaudio")
     pitch = 0
     last_event = float("-inf")
+    events = deque(maxlen=5)
     for s in seq:
         cmd, num = s.split("_")
         num = int(num)
@@ -24,11 +25,13 @@ async def play(seq, rest_divisor=512, middle_pitch=60):
             pitch += num
         if cmd == "PLAY":
             asyncio.create_task(play_sound(pitch, middle_pitch))
-            print("played", pitch + middle_pitch)
+            events.append(("played", pitch + middle_pitch))
         if cmd == "REST":
             to_wait = num / rest_divisor
             while real_to_wait := (time.time() - last_event) < to_wait:
                 await asyncio.sleep(max(0.001, 0.8 * (to_wait - real_to_wait)))
             last_event = time.time()
-            print("rested", to_wait)
-            print("real rested milis", num)
+            events.append(("rested", to_wait))
+            events.append(("real rested cs", num))
+        # for e in events:
+        #     print(e, end="\r", flush=True)
