@@ -42,12 +42,26 @@ for p in tqdm(Path("baroque").glob("**/*")):
     end = midi.get_end_time()
     
     out = []
+
     for instrument in midi.instruments:
         for note in instrument.notes:
             out.append([note.pitch, note.start])
     
     out = sorted(out, key=lambda x: x[1])
     out.append(["END", end])
+    
+    tempo_multiplier = 1
+    try:
+        midi_tempo = midi.estimate_tempo()
+        if midi_tempo > 200:
+            tempo_multiplier = 200 / midi_tempo
+        if midi_tempo < 40:
+            tempo_multiplier = 40 / midi_tempo
+    except ValueError as e:
+        print(e)
+    
+    out = [[event, t * tempo_multiplier] for event, t in out]
+    
     with out_path.open("w") as f:
         json.dump(out, f)
     

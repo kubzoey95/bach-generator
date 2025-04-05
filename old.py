@@ -7,27 +7,50 @@ from tokens import encode
 import math
 from functools import lru_cache
 import torch
+from collections import defaultdict
 
 
 @lru_cache(4096)
-def split(time, rests):
-    out = []
+def split(time, rests, multi=True):
+    if multi:
+        out = defaultdict()
+    else:
+        out = []
+    
     for r in sorted(rests, reverse=True):
         if time == 0:
             break
         if time < r:
             continue
         while time >= r:
-            out.append(r)
+            if multi:
+                out[r] += 1
+            else:
+                out.append(r)
+            
             time -= r
-    return out
+    if multi:
+        return list(out.items())
+    else:
+        return out
 
 
 def split_and_shuffle(time, rests, shuffle=True):
+    max_rests = max(rests)
     out = split(time, rests)
+    
+    ret = []
+    for k, v in out:
+        if v > max_rests:
+            for vv in split(v, multi=False):
+                ret.append((k, vv))
+        else:
+            ret.append((k, v))
+    
     if shuffle:
-        random.shuffle(out)
-    return out
+        random.shuffle(ret)
+    
+    return ret
 
 
 class MusicDataset(Dataset):
@@ -39,10 +62,10 @@ class MusicDataset(Dataset):
 
         self.rests_cs = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
         self.pitches = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
-
+        
         self.tempos = (0.5, 0.75, 1, 1.5, 2)
         self.train = train
-
+        
     def __len__(self):
         return len(self.pointers)
 
@@ -50,7 +73,7 @@ class MusicDataset(Dataset):
         notes: list = self.pieces[i][max(j-self.context_length, 0):j+2]
         notes.sort(key=lambda x: (int(x[0] == "END"), x[1], random.randint(-99999, 99999)))
         preout = np.array([[n0[0], min(n1[1] - n0[1], 10)] for n0, n1 in zip(notes[:-1], notes[1:])])
-
+        
         # augment tempo
         multiplier = 1
         if self.train:
@@ -58,7 +81,7 @@ class MusicDataset(Dataset):
         preout[:, 1] = preout[:, 1] * multiplier
         preout[:, 1] = (preout[:, 1] * 100).round().astype(int)  # to centiseconds
         preout[1:, 0] = preout[1:, 0] - preout[:-1, 0]
-
+        
         if self.train:
             preout[0, 0] = preout[0, 0] + random.randint(-11, 11)
 
@@ -68,12 +91,15 @@ class MusicDataset(Dataset):
             if pitch == 0:
                 out.append(("PITCH", 0))
             else:
-                for r in split_and_shuffle(abs(pitch), self.pitches, self.train):
+                for r, m in split_and_shuffle(abs(pitch), self.pitches, self.train):
                     out.append(("PITCH", np.sign(pitch) * r))
+                    out.append(("MULTIPLY", 0))
+                    out.append(("PITCH", m))
+                    
             out.append(("PLAY", 0))
-
+            
             if time > 0:
-                for r in split_and_shuffle(time, self.rests_cs, self.train):
+                for r, m in split_and_shuffle(time, self.rests_cs, self.train):
                     out.append(("REST", r))
 
         out = [*(("PAD", 0) for _ in range(self.context_length + 1 - len(out))), *out]
@@ -88,7 +114,7 @@ class MusicDataset(Dataset):
         else:
             x = out[:256]
             y = out[256]
-
+        
         assert len(x) == 256
         return torch.tensor(x), torch.tensor(y)
 
