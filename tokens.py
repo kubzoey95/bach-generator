@@ -44,7 +44,6 @@ antitokens = dict(enumerate([
     'REST_15',
     'PLAY_0',
     'PAD_0',
-    "MULTIPLY_0",
 ]))
 
 
